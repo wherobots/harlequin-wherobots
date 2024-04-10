@@ -2,7 +2,7 @@
 name = "harlequin-wherobots"
 version = "0.1.0"
 description = ""
-authors = ["Maxime Petazzoni <maxime.petazzoni@bulix.org>"]
+authors = ["Maxime Petazzoni <max@wherobots.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
