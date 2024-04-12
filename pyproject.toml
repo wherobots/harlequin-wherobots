@@ -6,9 +6,13 @@ authors = ["Maxime Petazzoni <max@wherobots.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = "^3.11"
 harlequin = "^1.16.2"
+wherobots-python-dbapi = {git = "https://github.com/wherobots/wherobots-python-dbapi-driver"}
+pyarrow = "^15.0.2"
 
+[tool.poetry.plugins."harlequin.adapter"]
+wherobots = "harlequin_wherobots:HarlequinWherobotsAdapter"
 
 [build-system]
 requires = ["poetry-core"]
