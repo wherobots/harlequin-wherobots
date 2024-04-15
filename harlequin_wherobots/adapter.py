@@ -1,18 +1,30 @@
+from concurrent.futures import Future, ThreadPoolExecutor, wait
 from typing import Sequence
 
+import logging
+import os
 import pyarrow
 import requests
 from harlequin import HarlequinAdapter, HarlequinCursor, HarlequinConnection
 from harlequin.catalog import Catalog, CatalogItem
-from harlequin.exception import HarlequinConnectionError, HarlequinQueryError
+from harlequin.exception import HarlequinConnectionError, HarlequinQueryError, HarlequinError
 from harlequin.options import HarlequinAdapterOption
 from textual_fastdatatable.backend import AutoBackendType
-from wherobots.db import Connection, Cursor, connect, connect_direct
-from wherobots.db.errors import DatabaseError, InterfaceError
+from wherobots.db import Connection, Cursor, connect, connect_direct, Runtime, Region
+from wherobots.db.errors import DatabaseError
 
 from .cli_options import WHEROBOTS_ADAPTER_OPTIONS
 
-DEFAULT_ENDPOINT = "cloud.wherobots.com"
+# Setup logging if requested
+_log_file = os.getenv("WHEROBOTS_HARLEQUIN_ADAPTER_LOG")
+_log_debug = os.getenv("WHEROBOTS_HARLEQUIN_ADAPTER_DEBUG")
+if _log_file:
+    logging.basicConfig(
+        filename=_log_file,
+        level=logging.DEBUG if _log_debug == "1" else logging.INFO,
+        format="%(asctime)s.%(msecs)03d %(levelname)s %(name)25s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
 
 class HarlequinWherobotsCursor(HarlequinCursor):
@@ -21,13 +33,14 @@ class HarlequinWherobotsCursor(HarlequinCursor):
         try:
             self.results = cursor.fetchall()
         except DatabaseError as e:
-            raise HarlequinQueryError("Query error") from e
+            raise HarlequinQueryError(f"Query error: {e}") from e
 
     def columns(self) -> list[tuple[str, str]]:
-        return [(str(col), "") for col in self.results.columns]
+        # TODO: consider switching to self.cursor.description once implemented?
+        return [(k, str(v)) for k, v in self.results.dtypes.items()]
 
-    def set_limit(self, limit: int) -> "HarlequinCursor":
-        pass
+    def set_limit(self, limit: int) -> HarlequinCursor:
+        return self
 
     def fetchall(self) -> AutoBackendType | None:
         return pyarrow.Table.from_pandas(self.results)
@@ -38,15 +51,21 @@ class HarlequinWherobotsConnection(HarlequinConnection):
         self,
         host: str,
         token: str | None = None,
-        ws_url: str | None = None,
         api_key: str | None = None,
+        runtime: str | None = None,
+        region: str | None = None,
+        ws_url: str | None = None,
         init_message: str = "",
     ) -> None:
-        self.init_message: str = init_message
-        self.host: str = host
-        self.ws_url: str | None = ws_url
-        self.token: str | None = token
-        self.api_key: str | None = api_key
+        self.init_message = init_message
+        self.conn = None
+
+        self.host = host
+        self.token = token
+        self.api_key = api_key
+        self.runtime = Runtime(runtime) if runtime else None
+        self.region = Region(region) if region else None
+        self.ws_url = ws_url
 
         self.headers: dict[str, str] = {}
         if token:
@@ -61,9 +80,11 @@ class HarlequinWherobotsConnection(HarlequinConnection):
             )
         else:
             self.conn: Connection = connect(
-                host=f"api.{self.host}",
+                host=self.host,
                 token=self.token,
                 api_key=self.api_key,
+                runtime=runtime,
+                region=region,
             )
 
     def execute(self, query: str) -> HarlequinCursor | None:
@@ -72,26 +93,52 @@ class HarlequinWherobotsConnection(HarlequinConnection):
         return HarlequinWherobotsCursor(cursor)
 
     def get_catalog(self) -> Catalog:
-        response = requests.get(
-            f"https://catalog.{self.host}/catalog/hierarchy", headers=self.headers
-        )
-        response.raise_for_status()
+        try:
+            response = requests.get(
+                f"https://{self.host}/catalog/hierarchy",
+                headers=self.headers
+            )
+            response.raise_for_status()
+        except Exception as e:
+            raise HarlequinError("Error reading catalog information from Wherobots") from e
 
+        executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=5, thread_name_prefix="wherobots-catalog-fetcher")
+        try:
+            items = self.__build_catalog(response.json(), executor)
+            return Catalog(items)
+        except Exception as e:
+            raise HarlequinError("Invalid catalog data!") from e
+        finally:
+            executor.shutdown(wait=True)
+
+    def __build_catalog(self, response, executor: ThreadPoolExecutor):
         items: list[CatalogItem] = []
-        response_json = response.json()
-        for catalog in response_json["catalogs"]:
+        tasks: list[Future] = []
+        for catalog in response["catalogs"]:
             dbs: list[CatalogItem] = []
             for db in catalog["databases"]:
                 tables: list[CatalogItem] = []
                 for table in db["tables"]:
+                    children = []
                     tables.append(
                         CatalogItem(
                             qualified_identifier=f"{catalog['name']}.{db['name']}.{table['name']}",
                             query_name=f"{catalog['name']}.{db['name']}.{table['name']}",
                             label=table["name"],
                             type_label="table",
+                            children=children,
                         )
                     )
+                    task: Future = executor.submit(
+                        self.__get_table_schema,
+                        catalog["extId"],
+                        catalog["name"],
+                        db["name"],
+                        table["name"],
+                        children,
+                    )
+                    tasks.append(task)
+
                 dbs.append(
                     CatalogItem(
                         qualified_identifier=f"{catalog['name']}.{db['name']}",
@@ -110,7 +157,35 @@ class HarlequinWherobotsConnection(HarlequinConnection):
                     children=dbs,
                 )
             )
-        return Catalog(items)
+
+        wait(tasks)
+        return items
+
+    def __get_table_schema(self, catalog_id, catalog, db, table, into):
+        """Get the schema for a table and add it to the table's CatalogItem."""
+        logging.debug("Getting schema for %s.%s.%s ...", catalog, db, table)
+        response = requests.get(
+            f"https://{self.host}/catalog/{catalog_id}/databases/{db}/tables/{table}",
+            headers=self.headers,
+        )
+        if response.status_code != 200:
+            # Ignore errors getting table schemas.
+            return
+
+        into += [
+            CatalogItem(
+                qualified_identifier=f"{catalog}.{db}.{table}.{field['name']}",
+                query_name=f"{field['name']}",
+                label=field["name"],
+                type_label=field["type"],
+            )
+            for field in response.json()["schema"]
+        ]
+
+    def close(self):
+        if self.conn:
+            logging.info("Closing connection to Wherobots ...")
+            self.conn.close()
 
 
 class HarlequinWherobotsAdapter(HarlequinAdapter):
@@ -130,11 +205,15 @@ class HarlequinWherobotsAdapter(HarlequinAdapter):
         conn_str: Sequence[str],
         token: str | None = None,
         api_key: str | None = None,
+        runtime: str | None = None,
+        region: str | None = None,
         ws_url: str | None = None,
     ) -> None:
         self.conn_str = conn_str
         self.token = token
         self.api_key = api_key
+        self.runtime = runtime
+        self.region = region
         self.ws_url = ws_url
 
     def connect(self) -> HarlequinConnection:
@@ -142,19 +221,22 @@ class HarlequinWherobotsAdapter(HarlequinAdapter):
 
         If no connection string is provided, DEFAULT_ENDPOINT is used.
         """
-        host = DEFAULT_ENDPOINT
         if len(self.conn_str) > 1:
             raise HarlequinConnectionError(
                 "Cannot provide more than one connection string for the Wherobots adapter."
             )
-        if self.conn_str:
-            host = self.conn_str[0]
+
+        # If no connection string is provided, let the driver use the default endpoint.
+        host = f"api.{self.conn_str[0]}" if self.conn_str else None
+
         try:
             return HarlequinWherobotsConnection(
                 host=host,
-                ws_url=self.ws_url,
                 token=self.token,
                 api_key=self.api_key,
+                runtime=self.runtime,
+                region=self.region,
+                ws_url=self.ws_url,
             )
         except Exception as e:
-            raise HarlequinConnectionError("Failed to connect to Wherobots") from e
+            raise HarlequinConnectionError(f"Failed to connect to Wherobots: {e}") from e
