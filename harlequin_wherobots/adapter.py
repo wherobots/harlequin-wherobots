@@ -10,7 +10,7 @@ from textual_fastdatatable.backend import AutoBackendType
 from wherobots.db import Connection, Cursor, connect, connect_direct
 from wherobots.db.errors import DatabaseError, InterfaceError
 
-from .options import WHEROBOTS_ADAPTER_OPTIONS
+from .cli_options import WHEROBOTS_ADAPTER_OPTIONS
 
 DEFAULT_ENDPOINT = "cloud.wherobots.com"
 
