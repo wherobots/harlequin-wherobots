@@ -3,6 +3,8 @@ from typing import Sequence
 
 import logging
 import os
+
+import pandas.io.json
 import pyarrow
 import requests
 from harlequin import HarlequinAdapter, HarlequinCursor, HarlequinConnection
@@ -32,12 +34,18 @@ class HarlequinWherobotsCursor(HarlequinCursor):
         self.cursor = cursor
         try:
             self.results = cursor.fetchall()
+            self.schema = pandas.io.json.build_table_schema(self.results)
         except DatabaseError as e:
             raise HarlequinQueryError(f"Query error: {e}") from e
 
     def columns(self) -> list[tuple[str, str]]:
-        # TODO: consider switching to self.cursor.description once implemented?
-        return [(k, str(v)) for k, v in self.results.dtypes.items()]
+        fields = self.schema["fields"]
+        primary_key = self.schema["primaryKey"]
+        return [
+            (field["name"], field["type"])
+            for field in fields
+            if field["name"] not in primary_key
+        ]
 
     def set_limit(self, limit: int) -> HarlequinCursor:
         return self
