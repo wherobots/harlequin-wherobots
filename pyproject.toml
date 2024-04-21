@@ -6,7 +6,7 @@ authors = ["Maxime Petazzoni <max@wherobots.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.9"
 harlequin = "^1.16.2"
 wherobots-python-dbapi = {git = "https://github.com/wherobots/wherobots-python-dbapi-driver"}
 pyarrow = "^15.0.2"
