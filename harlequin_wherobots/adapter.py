@@ -71,8 +71,8 @@ class HarlequinWherobotsConnection(HarlequinConnection):
         self.host = host
         self.token = token
         self.api_key = api_key
-        self.runtime = Runtime(runtime) if runtime else None
-        self.region = Region(region) if region else None
+        self.runtime = Runtime[runtime] if runtime else None
+        self.region = Region[region] if region else None
         self.ws_url = ws_url
 
         self.headers: dict[str, str] = {}
@@ -91,8 +91,8 @@ class HarlequinWherobotsConnection(HarlequinConnection):
                 host=self.host,
                 token=self.token,
                 api_key=self.api_key,
-                runtime=runtime,
-                region=region,
+                runtime=self.runtime,
+                region=self.region,
             )
 
     def execute(self, query: str) -> HarlequinCursor | None:
