@@ -247,4 +247,5 @@ class HarlequinWherobotsAdapter(HarlequinAdapter):
                 ws_url=self.ws_url,
             )
         except Exception as e:
+            logging.exception(e)
             raise HarlequinConnectionError(f"Failed to connect to Wherobots: {e}") from e
