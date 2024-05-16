@@ -1,13 +1,13 @@
 # Wherobots Adapter for Harlequin
 
-This repository provides the Harlequin adapter for Wherobots DB, using
+This repository provides the Harlequin adapter for WherobotsDB, using
 the Wherobots Spatial SQL API and its
 [wherobots-python-dbapi-driver](https://github.com/wherobots/wherobots-python-dbapi-driver).
 
 ## Installation
 
 ```
-$ pip install git+https://github.com/wherobots/harlequin-wherobots
+$ pip install harlequin-wherobots
 ```
 
 ## Usage
@@ -32,24 +32,24 @@ override those defaults with the `--runtime` and `--region` options,
 respectively:
 
 ```
-$ harlequin -a wherobots --api-key <key> --runtime NEW_YORK --region aws-us-west-2
+$ harlequin -a wherobots --api-key <key> --runtime NEW_YORK --region AWS_US_WEST_2
 ```
 
 ## Advanced options
 
 If your SQL session is already provisioned and running, you can force
-the driver to directly connect to it via its WebSocket URL:
+the driver to directly connect to it via its WebSocket URL (without
+protocol version):
 
 ```
 $ harlequin -a wherobots --api-key <key> --ws-url <session-url>
 ```
 
 You can also specify the base hostname of the Wherobots stack to
-interact with. By default, the driver connects to `cloud.wherobots.com`,
-the official public Wherobots service. You may want or need to use
-`govcloud.wherobots.com`, `staging.wherobots.com`, or another local
-target during development.
+interact with as the first positional parameter. By default, the driver
+connects to `cloud.wherobots.com`, the official public Wherobots
+service.
 
 ```
-$ harlequin -a wherobots --api-key <key> staging.wherobots.com
+$ harlequin -a wherobots --api-key <key> [host]
 ```

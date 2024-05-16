@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "harlequin-wherobots"
-version = "0.1.0"
+version = "0.2.0"
 description = ""
 authors = ["Maxime Petazzoni <max@wherobots.com>"]
 readme = "README.md"
