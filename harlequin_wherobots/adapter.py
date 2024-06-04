@@ -29,6 +29,9 @@ if _log_file:
     )
 
 
+DEFAULT_CONNECTION = "api.cloud.wherobots.com"
+
+
 class HarlequinWherobotsCursor(HarlequinCursor):
     def __init__(self, cursor: Cursor) -> None:
         self.cursor = cursor
@@ -235,7 +238,7 @@ class HarlequinWherobotsAdapter(HarlequinAdapter):
             )
 
         # If no connection string is provided, let the driver use the default endpoint.
-        host = f"api.{self.conn_str[0]}" if self.conn_str else None
+        host = f"api.{self.conn_str[0]}" if self.conn_str else DEFAULT_CONNECTION
 
         try:
             return HarlequinWherobotsConnection(
