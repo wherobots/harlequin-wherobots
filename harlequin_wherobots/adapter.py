@@ -13,6 +13,7 @@ from harlequin.exception import HarlequinConnectionError, HarlequinQueryError, H
 from harlequin.options import HarlequinAdapterOption
 from textual_fastdatatable.backend import AutoBackendType
 from wherobots.db import Connection, Cursor, connect, connect_direct, Runtime, Region
+from wherobots.db.constants import DEFAULT_ENDPOINT
 from wherobots.db.errors import DatabaseError
 
 from .cli_options import WHEROBOTS_ADAPTER_OPTIONS
@@ -234,8 +235,8 @@ class HarlequinWherobotsAdapter(HarlequinAdapter):
                 "Cannot provide more than one connection string for the Wherobots adapter."
             )
 
-        # If no connection string is provided, let the driver use the default endpoint.
-        host = f"api.{self.conn_str[0]}" if self.conn_str else None
+        # If no connection string is provided, use the driver's default endpoint
+        host = f"api.{self.conn_str[0]}" if self.conn_str else DEFAULT_ENDPOINT
 
         try:
             return HarlequinWherobotsConnection(
