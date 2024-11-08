@@ -26,14 +26,19 @@ $ harlequin -a wherobots --token <token>
 ```
 
 The Harlequin adapter for Wherobots will automatically start a Wherobots
-SQL session with the default runtime (Sedona, 4 executors) in the
+SQL session with the default runtime (Tiny, 4 executors) in the
 default Wherobots public compute region (AWS `us-west-2`). You can
 override those defaults with the `--runtime` and `--region` options,
 respectively:
 
 ```
-$ harlequin -a wherobots --api-key <key> --runtime NEW_YORK --region AWS_US_WEST_2
+$ harlequin -a wherobots --api-key <key> --runtime MEDIUM --region AWS_US_WEST_2
 ```
+
+> [!NOTE]
+> Community Edition users of Wherobots Cloud are restricted to the
+> "Tiny" runtime size. See our [Pricing](https://www.wherobots.com/pricing)
+> for more information.
 
 ## Advanced options
 
