@@ -8,8 +8,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.9"
 harlequin = "^1.16.2"
-wherobots-python-dbapi = "^0.7.1"
-pyarrow = "^15.0.2"
+wherobots-python-dbapi = "^0.9.1"
 
 [tool.poetry.plugins."harlequin.adapter"]
 wherobots = "harlequin_wherobots:HarlequinWherobotsAdapter"
