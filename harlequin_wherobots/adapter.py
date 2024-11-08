@@ -38,6 +38,7 @@ class HarlequinWherobotsCursor(HarlequinCursor):
             self.schema = pandas.io.json.build_table_schema(self.results)
         except DatabaseError as e:
             raise HarlequinQueryError(f"Query error: {e}") from e
+        self.cursor.close()
 
     def columns(self) -> list[tuple[str, str]]:
         fields = self.schema["fields"]
@@ -68,6 +69,7 @@ class HarlequinWherobotsConnection(HarlequinConnection):
     ) -> None:
         self.init_message = init_message
         self.conn = None
+        self.cursors = set()
 
         self.host = host
         self.token = token
@@ -99,7 +101,14 @@ class HarlequinWherobotsConnection(HarlequinConnection):
     def execute(self, query: str) -> HarlequinCursor | None:
         cursor: Cursor = self.conn.cursor()
         cursor.execute(query)
-        return HarlequinWherobotsCursor(cursor)
+        self.cursors.add(cursor)
+        hc = HarlequinWherobotsCursor(cursor)
+        self.cursors.remove(cursor)
+        return hc
+
+    def cancel(self) -> None:
+        for cursor in self.cursors:
+            cursor.close()
 
     def get_catalog(self) -> Catalog:
         try:
@@ -208,6 +217,7 @@ class HarlequinWherobotsAdapter(HarlequinAdapter):
     """
 
     ADAPTER_OPTIONS: list[HarlequinAdapterOption] | None = WHEROBOTS_ADAPTER_OPTIONS
+    IMPLEMENTS_CANCEL = True
 
     def __init__(
         self,
