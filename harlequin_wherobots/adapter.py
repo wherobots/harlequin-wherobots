@@ -33,14 +33,13 @@ if _log_file:
 class HarlequinWherobotsCursor(HarlequinCursor):
     def __init__(self, cursor: Cursor) -> None:
         self.cursor = cursor
-        try:
-            self.results = cursor.fetchall()
-            self.schema = pandas.io.json.build_table_schema(self.results)
-        except DatabaseError as e:
-            raise HarlequinQueryError(f"Query error: {e}") from e
-        self.cursor.close()
+        self.results = None
+        self.schema = None
 
     def columns(self) -> list[tuple[str, str]]:
+        if self.schema is None:
+            return []
+
         fields = self.schema["fields"]
         primary_key = self.schema["primaryKey"]
         return [
@@ -53,7 +52,20 @@ class HarlequinWherobotsCursor(HarlequinCursor):
         return self
 
     def fetchall(self) -> AutoBackendType | None:
+        if self.results is None:
+            try:
+                self.results = self.cursor.fetchall()
+                self.schema = pandas.io.json.build_table_schema(self.results)
+                self.cursor.close()
+                self.cursor = None
+            except DatabaseError as e:
+                raise HarlequinQueryError(f"Query error: {e}") from e
+
         return pyarrow.Table.from_pandas(self.results)
+
+    def close(self) -> None:
+        if self.cursor is not None:
+            self.cursor.close()
 
 
 class HarlequinWherobotsConnection(HarlequinConnection):
@@ -101,9 +113,8 @@ class HarlequinWherobotsConnection(HarlequinConnection):
     def execute(self, query: str) -> HarlequinCursor | None:
         cursor: Cursor = self.conn.cursor()
         cursor.execute(query)
-        self.cursors.add(cursor)
         hc = HarlequinWherobotsCursor(cursor)
-        self.cursors.remove(cursor)
+        self.cursors.add(hc)
         return hc
 
     def cancel(self) -> None:
