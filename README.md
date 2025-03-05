@@ -40,6 +40,12 @@ $ harlequin -a wherobots --api-key <key> --runtime MEDIUM --region AWS_US_WEST_2
 > "Tiny" runtime size. See our [Pricing](https://www.wherobots.com/pricing)
 > for more information.
 
+> [!WARNING]
+> To prepare for the expansion of Wherobots Cloud to new regions and cloud providers, the `--region` parameter will become mandatory in a future SDK version.
+> Before this support for new regions is added, we will release an updated version of the SDK.
+> If you continue using an older SDK version, your existing commands for creating connections will still work.
+> However, any SQL session you initialize without specifying the `--region` parameter will be hosted in the `aws-us-west-2` region.
+
 ## Advanced options
 
 If your SQL session is already provisioned and running, you can force
