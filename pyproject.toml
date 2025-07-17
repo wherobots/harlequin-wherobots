@@ -1,6 +1,6 @@
 [project]
 name = "harlequin-wherobots"
-version = "0.7.0"
+version = "0.8.0"
 description = "Harlequin adapter for Wherobots' Spatial SQL API"
 authors = [{ name = "Maxime Petazzoni", email = "max@wherobots.com" }]
 requires-python = ">=3.9,<3.14"
