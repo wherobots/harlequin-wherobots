@@ -201,15 +201,43 @@ class HarlequinWherobotsConnection(HarlequinConnection):
             # Ignore errors getting table schemas.
             return
 
-        into += [
-            CatalogItem(
-                qualified_identifier=f"{catalog}.{db}.{table}.{field['name']}",
-                query_name=f"{field['name']}",
-                label=field["name"],
-                type_label=field["type"],
+        schema = response.json().get("schema", {})
+        fields = schema.get("fields", [])
+        if not isinstance(fields, list):
+            return
+        
+        for field in fields:
+            field_name = field["name"]
+            field_type = field["type"]
+            
+            # For nested types (struct, list, map), extract just the type name
+            # TODO: handle nested types better (e.g. nested column with children)
+            if isinstance(field_type, dict):
+                if "type" in field_type:
+                    type_label = field_type["type"]
+                else:
+                    logging.warning(
+                        "Missing 'type' in field_type for field '%s' in table %s.%s.%s: %r",
+                        field_name, catalog, db, table, field_type
+                    )
+                    type_label = f"unknown (missing type for field: {catalog}.{db}.{table}.{field_name})"
+            elif isinstance(field_type, str):
+                type_label = field_type
+            else:
+                logging.warning(
+                    "Unexpected field_type format for field '%s' in table %s.%s.%s: %r",
+                    field_name, catalog, db, table, field_type
+                )
+                type_label = f"unknown (invalid type for field: {catalog}.{db}.{table}.{field_name})"
+            
+            into.append(
+                CatalogItem(
+                    qualified_identifier=f"{catalog}.{db}.{table}.{field_name}",
+                    query_name=field_name,
+                    label=field_name,
+                    type_label=type_label,
+                )
             )
-            for field in response.json()["schema"]
-        ]
 
     def close(self):
         if self.conn:
