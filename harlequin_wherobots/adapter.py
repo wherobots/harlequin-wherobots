@@ -124,7 +124,7 @@ class HarlequinWherobotsConnection(HarlequinConnection):
     def get_catalog(self) -> Catalog:
         try:
             response = requests.get(
-                f"https://{self.host}/catalog/hierarchy",
+                f"https://{self.host}/catalogs/hierarchy",
                 headers=self.headers
             )
             response.raise_for_status()
@@ -194,7 +194,7 @@ class HarlequinWherobotsConnection(HarlequinConnection):
         """Get the schema for a table and add it to the table's CatalogItem."""
         logging.debug("Getting schema for %s.%s.%s ...", catalog, db, table)
         response = requests.get(
-            f"https://{self.host}/catalog/{catalog_id}/databases/{db}/tables/{table}",
+            f"https://{self.host}/catalogs/{catalog_id}/namespaces/{db}/tables/{table}",
             headers=self.headers,
         )
         if response.status_code != 200:
