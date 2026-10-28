@@ -2,7 +2,7 @@
 
 This repository provides the Harlequin adapter for WherobotsDB, using
 the Wherobots Spatial SQL API and its
-[wherobots-python-dbapi-driver](https://github.com/wherobots/wherobots-python-dbapi-driver).
+[wherobots-python-dbapi](https://github.com/wherobots/wherobots-python-dbapi) driver.
 
 ## Installation
 
@@ -26,9 +26,10 @@ $ harlequin -a wherobots --token <token>
 ```
 
 The Harlequin adapter for Wherobots will automatically start a Wherobots
-SQL session with the default runtime (Tiny, 4 executors) in the
-default Wherobots public compute region (AWS `us-west-2`). You can
-override those defaults with the `--runtime` and `--region` options,
+SQL session with your organization's default runtime and region. This
+needs `wherobots-python-dbapi` 0.28.0 or later, which requires Python
+3.10 or later. Older driver versions fall back to Tiny in `aws-us-west-2`.
+You can override the defaults with the `--runtime` and `--region` options,
 respectively:
 
 ```
